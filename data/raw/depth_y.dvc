@@ -1,0 +1,5 @@
+outs:
+- md5: 226a2e0ec6438e10e8daed5ed6790455.dir
+  size: 3777715830
+  nfiles: 5000
+  path: depth_y
