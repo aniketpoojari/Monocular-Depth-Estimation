@@ -1,0 +1,5 @@
+outs:
+- md5: 1a04ba1d893a2a98d3a724e1db74931a.dir
+  size: 11591013039
+  nfiles: 5000
+  path: depth_X
