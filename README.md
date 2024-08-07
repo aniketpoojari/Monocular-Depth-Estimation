@@ -16,13 +16,17 @@ Monocular Depth Estimation
 
 ## 📄 Introduction
 
-Image denoising is a crucial task in image processing and computer vision, as noise can degrade image quality and hinder further analysis. In this project, we will explore the use of an autoencoder neural network for image denoising.
+Monocular Depth Estimation is a critical task in computer vision, enabling the inference of scene depth information from a single RGB image. This capability is essential for applications such as 3D reconstruction, autonomous driving, and augmented reality. In this project, we will explore the use of a Vision Transformer (ViT) combined with convolutional decoder blocks for monocular depth estimation.
 
-An autoencoder is a type of neural network that is trained to reconstruct its input. It consists of an encoder that maps the input to a lower-dimensional latent space, and a decoder that maps the latent space back to the original input space. By training the autoencoder to reconstruct noisy images, we can effectively teach it to remove the noise and produce clean, denoised images.
+Monocular depth estimation involves training a neural network to predict a dense depth map from a single image. The network learns to interpret various visual cues present in the image that correspond to depth information, such as object size, texture gradients, and occlusion boundaries.
 
-Our autoencoder will be implemented using PyTorch, a popular open-source machine learning library. We will define the encoder and decoder architectures using sequential blocks of convolutional or transpose convolutional layers, followed by batch normalization and ReLU activation.
+Our model will leverage a Vision Transformer (ViT) as the encoder. The ViT is well-suited for capturing global context and long-range dependencies within the image, which are crucial for accurate depth estimation. The encoded features will then be passed to a series of convolutional decoder blocks, which will upsample the features and generate the corresponding depth map.
 
-To train the autoencoder, we will use the Adam optimizer and the mean squared error loss function. We will also log the training metrics and the final model using MLflow, an open-source platform for managing machine learning experiments.
+The model will be implemented using PyTorch, a popular open-source machine learning library. The ViT encoder will extract high-level features from the input image, while the convolutional decoder blocks will progressively refine these features to produce a high-resolution depth map.
+
+To train the depth estimation model, we will use the Adam optimizer and the root mean squared error loss function, which measures the difference between the predicted depth map and the ground truth depth. We will also log the training metrics and the final model using MLflow, an open-source platform for managing machine learning experiments.
+
+Based on the paper: https://arxiv.org/pdf/2103.13413v1
 
 ## 🌟 Features
 
@@ -33,14 +37,13 @@ To train the autoencoder, we will use the Adam optimizer and the mean squared er
 
 ## 🛠️ Requirements
 
-- yaml
+- Pillow
 - torch
 - torchvision
-- os
-- pillow
-- numpy
-- visdom
+- pandas
 - mlflow
+- timm
+- PyYAML
 
 ## 🚚 Installation
 
