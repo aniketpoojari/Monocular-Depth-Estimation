@@ -1,0 +1,48 @@
+schema: '2.0'
+stages:
+  training:
+    cmd: python src/training.py --config=params.yaml
+    deps:
+    - path: data/raw/depth_X/train
+      md5: 5ad9e1e41a8140de583e7ae44bc84beb.dir
+      size: 6946288257
+      nfiles: 2975
+    - path: data/raw/depth_y/train
+      md5: a84ca2a9a84c28c0433a95e87c004e73.dir
+      size: 2246695804
+      nfiles: 2975
+    - path: src/training.py
+      md5: eb7b6c6b8ee045f26ef130603103f22f
+      size: 3555
+    params:
+      params.yaml:
+        data.batch_size: 16
+        mlflow.experiment_name: Monocular Depth Estimation
+        mlflow.registered_model_name: ViT+Decoder
+        mlflow.run_name: 1st
+        mlflow.server_uri: sqlite:///mlflow.db
+        model.decoder_features: 256
+        training.decoder_lr: 0.0001
+        training.num_epoches: 2
+        training.vit_lr: 1e-05
+    outs:
+    - path: training_completion.txt
+      md5: 8b6ef9e94f0b7eed9ea267f375e2f706
+      size: 41
+  log_production_model:
+    cmd: python src/log_production_model.py --config=params.yaml
+    deps:
+    - path: src/log_production_model.py
+      md5: 0d0476776a0f12c2f23f083a3669eb03
+      size: 1117
+    - path: training_completion.txt
+      md5: 8b6ef9e94f0b7eed9ea267f375e2f706
+      size: 41
+    params:
+      params.yaml:
+        mlflow.experiment_name: Monocular Depth Estimation
+        mlflow.server_uri: sqlite:///mlflow.db
+    outs:
+    - path: saved_models/model.pth
+      md5: db01fa5da60081c08c5d5575a08455ab
+      size: 374005397
