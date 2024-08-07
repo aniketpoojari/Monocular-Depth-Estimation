@@ -115,8 +115,8 @@ class DPT(nn.Module):
 
         specific_tokens = []
         for i, layer in enumerate(self.vit.blocks):
+            tokens = layer(tokens)
             if (i + 1) % 3 == 0:
-                tokens = layer(tokens)
                 specific_tokens.append(tokens)
 
         for i in range(0, len(specific_tokens)):
