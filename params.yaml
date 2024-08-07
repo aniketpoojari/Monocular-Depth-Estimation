@@ -1,0 +1,19 @@
+data:
+  X_dir_train: data/raw/depth_X/train
+  y_dir_train: data/raw/depth_y/train
+  img_size: 224
+  batch_size: 16
+
+model:
+  decoder_features: 256
+
+training:
+  num_epoches: 2
+  vit_lr: 1e-5
+  decoder_lr: 1e-4
+
+mlflow:
+  server_uri: sqlite:///mlflow.db
+  experiment_name: Monocular Depth Estimation
+  run_name: 1st
+  registered_model_name: ViT+Decoder

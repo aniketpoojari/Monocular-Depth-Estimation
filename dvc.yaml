@@ -1,0 +1,30 @@
+stages:
+  training:
+    cmd: python src/training.py --config=params.yaml
+    deps:
+      - data/raw/depth_X/train
+      - data/raw/depth_y/train
+      - src/training.py
+    params:
+      - data.batch_size
+      - model.decoder_features
+      - training.num_epoches
+      - training.vit_lr
+      - training.decoder_lr
+      - mlflow.server_uri
+      - mlflow.experiment_name
+      - mlflow.run_name
+      - mlflow.registered_model_name
+    outs:
+      - training_completion.txt
+
+  log_production_model:
+    cmd: python src/log_production_model.py --config=params.yaml
+    deps:
+      - src/log_production_model.py
+      - training_completion.txt
+    params:
+      - mlflow.server_uri
+      - mlflow.experiment_name
+    outs:
+      - saved_models/model.pth
