@@ -31,21 +31,21 @@ def training(config_path):
 
     train_dataloader = get_data_loader(X_dir_train, y_dir_train, img_size, batch_size)
 
-    model = DPT(new=256).cuda()  # For example, 21 classes for segmentation
+    model = DPT(new=decoder_features).cuda()  # For example, 21 classes for segmentation
     opt = optim.Adam(
         [
-            {"params": model.vit.parameters(), "lr": 1e-5},  # Encoder/backbone
+            {"params": model.vit.parameters(), "lr": vit_lr},  # Encoder/backbone
             {
                 "params": model.reassemble_layers.parameters(),
-                "lr": 1e-4,
+                "lr": decoder_lr,
             },  # Decoder's reassemble layers
             {
                 "params": model.fusion_blocks.parameters(),
-                "lr": 1e-4,
+                "lr": decoder_lr,
             },  # Decoder's fusion blocks
             {
                 "params": model.output_head.parameters(),
-                "lr": 1e-4,
+                "lr": decoder_lr,
             },  # Decoder's output head
         ]
     )
