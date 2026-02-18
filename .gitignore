@@ -5,6 +5,7 @@
 /saved_models/
 /outputs/
 /metrics.json
+/data/processed/
 
 # Python
 __pycache__/
