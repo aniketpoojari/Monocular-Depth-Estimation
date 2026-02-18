@@ -1,2 +1,31 @@
+# Data and model artifacts
 /training_completion.txt
 /mlflow.db
+/mlruns/
+/saved_models/
+/outputs/
+/metrics.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# Model exports
+*.onnx
+*.engine
+*.trt
+
+# Gradio
+.gradio/
+
+# OS
+.DS_Store
+Thumbs.db

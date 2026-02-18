@@ -1,0 +1,71 @@
+name: Deploy to HF Spaces
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - app.py
+      - Dockerfile
+      - params.yaml
+      - src/common.py
+      - examples/**
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install huggingface-hub pyyaml
+
+      - name: Read Space ID from params.yaml
+        id: config
+        run: |
+          SPACE_ID=$(python -c "import yaml; print(yaml.safe_load(open('params.yaml'))['export']['hf_space_id'])")
+          echo "space_id=$SPACE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Create HF Space if it doesn't exist
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -c "
+          from huggingface_hub import HfApi
+          import os
+          api = HfApi(token=os.environ['HF_TOKEN'])
+          api.create_repo(
+              repo_id='${{ steps.config.outputs.space_id }}',
+              repo_type='space',
+              space_sdk='docker',
+              exist_ok=True,
+          )
+          print('Space ready: https://huggingface.co/spaces/${{ steps.config.outputs.space_id }}')
+          "
+
+      - name: Push to Hugging Face Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git clone https://user:${HF_TOKEN}@huggingface.co/spaces/${{ steps.config.outputs.space_id }} hf-space
+
+          # Copy only the files needed for the Space
+          cp app.py hf-space/
+          cp Dockerfile hf-space/
+          cp params.yaml hf-space/
+          mkdir -p hf-space/src
+          cp src/common.py hf-space/src/
+          cp -r examples/ hf-space/examples/
+
+          cd hf-space
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git diff --staged --quiet || git commit -m "Deploy from GitHub Actions"
+          git push

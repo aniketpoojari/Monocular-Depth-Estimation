@@ -1,48 +1,250 @@
 schema: '2.0'
 stages:
   training:
-    cmd: python src/training.py --config=params.yaml
+    cmd: python -u src/training.py --config=params.yaml
+    deps:
+    - path: data/processed/depth_X/train
+      hash: md5
+      md5: 09496050202b83140429eee275d80bff.dir
+      size: 230828102
+      nfiles: 2975
+    - path: data/processed/depth_X/val
+      hash: md5
+      md5: 1b34139eec99bf8dae5f74e6da5d079b.dir
+      size: 39255521
+      nfiles: 500
+    - path: data/processed/depth_y/train
+      hash: md5
+      md5: 91a35f8a4d902a9547b17ab2133535e4.dir
+      size: 597475200
+      nfiles: 2975
+    - path: data/processed/depth_y/val
+      hash: md5
+      md5: aa54b481ec52842e6f15070aaa10b1e4.dir
+      size: 100416000
+      nfiles: 500
+    - path: src/data_loader.py
+      hash: md5
+      md5: a53243386662128f1e21ee0583b3f4d8
+      size: 3999
+    - path: src/metrics.py
+      hash: md5
+      md5: fd5846376b80bbbab7ea8a71eb448861
+      size: 1504
+    - path: src/model.py
+      hash: md5
+      md5: 26e61b35ebb5ccd8fc08474e38e7f85e
+      size: 5146
+    - path: src/training.py
+      hash: md5
+      md5: 1ed634dc9555e6ae2c6ff898f9ded29b
+      size: 11093
+    params:
+      params.yaml:
+        augmentation:
+          horizontal_flip_prob: 0.5
+          color_jitter:
+            brightness: 0.2
+            contrast: 0.2
+            saturation: 0.2
+            hue: 0.1
+          random_crop_scale:
+          - 0.8
+          - 1.0
+        data:
+          X_dir_train: data/processed/depth_X/train
+          y_dir_train: data/processed/depth_y/train
+          X_dir_val: data/processed/depth_X/val
+          y_dir_val: data/processed/depth_y/val
+          X_dir_test: data/processed/depth_X/test
+          y_dir_test: data/processed/depth_y/test
+          img_size: 224
+          batch_size: 8
+          num_workers: 2
+          num_cities:
+          max_depth: 80
+          baseline: 0.209313
+          focal_length: 2262.52
+        mlflow:
+          server_uri: sqlite:///mlflow.db
+          experiment_name: Monocular Depth Estimation
+          run_name: v3-full
+          registered_model_name: ViT+Decoder
+        model:
+          decoder_features: 256
+        training:
+          num_epochs: 50
+          vit_lr: 1e-05
+          decoder_lr: 0.0001
+          use_amp: true
+          grad_clip_norm: 1.0
+          scheduler: cosine
+          warmup_epochs: 3
+          weight_decay: 0.01
+          patience: 10
+          loss:
+            si_weight: 1.0
+            grad_weight: 0.5
+    outs:
+    - path: saved_models/model.pth
+      hash: md5
+      md5: bdb0d31fdd4f90ef30c822462ec6d361
+      size: 376084194
+  log_production_model:
+    cmd: python src/log_production_model.py --config=params.yaml
+    deps:
+    - path: metrics.json
+      hash: md5
+      md5: d188650f747955c6cf98539ba9667ac3
+      size: 240
+    - path: saved_models/model.pth
+      hash: md5
+      md5: bdb0d31fdd4f90ef30c822462ec6d361
+      size: 376084194
+    - path: src/log_production_model.py
+      hash: md5
+      md5: b5c6a16430ac1b88738fbaaa39e2e880
+      size: 2140
+    params:
+      params.yaml:
+        mlflow:
+          server_uri: sqlite:///mlflow.db
+          experiment_name: Monocular Depth Estimation
+          run_name: v3-full
+          registered_model_name: ViT+Decoder
+    outs:
+    - path: saved_models/production_model.pth
+      hash: md5
+      md5: bdb0d31fdd4f90ef30c822462ec6d361
+      size: 376084194
+  preprocessing:
+    cmd: python src/preprocess.py --config=params.yaml
     deps:
     - path: data/raw/depth_X/train
+      hash: md5
       md5: 5ad9e1e41a8140de583e7ae44bc84beb.dir
       size: 6946288257
       nfiles: 2975
     - path: data/raw/depth_y/train
+      hash: md5
       md5: a84ca2a9a84c28c0433a95e87c004e73.dir
       size: 2246695804
       nfiles: 2975
-    - path: src/training.py
-      md5: eb7b6c6b8ee045f26ef130603103f22f
-      size: 3555
+    - path: src/preprocess.py
+      hash: md5
+      md5: c1f40489752d61a727cf8cf5122e8c67
+      size: 4684
     params:
       params.yaml:
-        data.batch_size: 16
-        mlflow.experiment_name: Monocular Depth Estimation
-        mlflow.registered_model_name: ViT+Decoder
-        mlflow.run_name: 1st
-        mlflow.server_uri: sqlite:///mlflow.db
-        model.decoder_features: 256
-        training.decoder_lr: 0.0001
-        training.num_epoches: 2
-        training.vit_lr: 1e-05
+        data.baseline: 0.209313
+        data.focal_length: 2262.52
+        data.img_size: 224
+        data.max_depth: 80
     outs:
-    - path: training_completion.txt
-      md5: 8b6ef9e94f0b7eed9ea267f375e2f706
-      size: 41
-  log_production_model:
-    cmd: python src/log_production_model.py --config=params.yaml
+    - path: data/processed/depth_X/train
+      hash: md5
+      md5: 09496050202b83140429eee275d80bff.dir
+      size: 230828102
+      nfiles: 2975
+    - path: data/processed/depth_y/train
+      hash: md5
+      md5: 91a35f8a4d902a9547b17ab2133535e4.dir
+      size: 597475200
+      nfiles: 2975
+  evaluate:
+    cmd: python src/evaluate.py --config=params.yaml
     deps:
-    - path: src/log_production_model.py
-      md5: 0d0476776a0f12c2f23f083a3669eb03
-      size: 1117
-    - path: training_completion.txt
-      md5: 8b6ef9e94f0b7eed9ea267f375e2f706
-      size: 41
+    - path: data/processed/depth_X/test
+      hash: md5
+      md5: a4eb809227e8df48a9055964d3c642c7.dir
+      size: 114798363
+      nfiles: 1525
+    - path: data/processed/depth_y/test
+      hash: md5
+      md5: 24c2aabf8bd2368e700436c4eb7146ca.dir
+      size: 306268800
+      nfiles: 1525
+    - path: saved_models/model.pth
+      hash: md5
+      md5: bdb0d31fdd4f90ef30c822462ec6d361
+      size: 376084194
+    - path: src/evaluate.py
+      hash: md5
+      md5: 46648d0397a0747d9ee8800d4b29f218
+      size: 3006
+    - path: src/metrics.py
+      hash: md5
+      md5: fd5846376b80bbbab7ea8a71eb448861
+      size: 1504
     params:
       params.yaml:
-        mlflow.experiment_name: Monocular Depth Estimation
-        mlflow.server_uri: sqlite:///mlflow.db
+        data:
+          X_dir_train: data/processed/depth_X/train
+          y_dir_train: data/processed/depth_y/train
+          X_dir_val: data/processed/depth_X/val
+          y_dir_val: data/processed/depth_y/val
+          X_dir_test: data/processed/depth_X/test
+          y_dir_test: data/processed/depth_y/test
+          img_size: 224
+          batch_size: 8
+          num_workers: 2
+          num_cities:
+          max_depth: 80
+          baseline: 0.209313
+          focal_length: 2262.52
+        mlflow:
+          server_uri: sqlite:///mlflow.db
+          experiment_name: Monocular Depth Estimation
+          run_name: v3-full
+          registered_model_name: ViT+Decoder
+        model:
+          decoder_features: 256
     outs:
-    - path: saved_models/model.pth
-      md5: db01fa5da60081c08c5d5575a08455ab
-      size: 374005397
+    - path: metrics.json
+      hash: md5
+      md5: d188650f747955c6cf98539ba9667ac3
+      size: 240
+  export_onnx:
+    cmd: python src/export_onnx.py --config=params.yaml
+    deps:
+    - path: saved_models/production_model.pth
+      hash: md5
+      md5: bdb0d31fdd4f90ef30c822462ec6d361
+      size: 376084194
+    - path: src/export_onnx.py
+      hash: md5
+      md5: 8e94b72b3979f1c704377d3eedd8737a
+      size: 2168
+    - path: src/model.py
+      hash: md5
+      md5: 26e61b35ebb5ccd8fc08474e38e7f85e
+      size: 5146
+    params:
+      params.yaml:
+        export:
+          onnx_path: saved_models/model.onnx
+          tensorrt_path: saved_models/model.engine
+          opset_version: 17
+          hf_repo_id: aniketp2009gmail/monocular-depth-estimation
+          hf_space_id: aniketp2009gmail/depth-estimation-demo
+        model:
+          decoder_features: 256
+    outs:
+    - path: saved_models/model.onnx
+      hash: md5
+      md5: 95d60a5ede1acf5a269b5153787a8251
+      size: 376153891
+  push_to_hf:
+    cmd: python src/push_to_hf.py --config=params.yaml
+    deps:
+    - path: saved_models/model.onnx
+      hash: md5
+      md5: 95d60a5ede1acf5a269b5153787a8251
+      size: 376153891
+    - path: src/push_to_hf.py
+      hash: md5
+      md5: a54be7b0aa6dc5963b99b6a95d0449d5
+      size: 1061
+    params:
+      params.yaml:
+        export.hf_repo_id: aniketp2009gmail/monocular-depth-estimation

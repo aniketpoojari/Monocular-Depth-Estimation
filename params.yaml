@@ -1,19 +1,53 @@
 data:
-  X_dir_train: data/raw/depth_X/train
-  y_dir_train: data/raw/depth_y/train
+  X_dir_train: data/processed/depth_X/train
+  y_dir_train: data/processed/depth_y/train
+  X_dir_val: data/processed/depth_X/val
+  y_dir_val: data/processed/depth_y/val
+  X_dir_test: data/processed/depth_X/test
+  y_dir_test: data/processed/depth_y/test
   img_size: 224
-  batch_size: 16
+  batch_size: 8
+  num_workers: 2
+  num_cities:   # all cities
+  max_depth: 80          # meters — full Cityscapes range
+  baseline: 0.209313     # Cityscapes stereo baseline in meters
+  focal_length: 2262.52  # Cityscapes focal length in pixels
 
 model:
   decoder_features: 256
 
 training:
-  num_epoches: 2
+  num_epochs: 50
   vit_lr: 1e-5
   decoder_lr: 1e-4
+  use_amp: true
+  grad_clip_norm: 1.0
+  scheduler: cosine
+  warmup_epochs: 3
+  weight_decay: 0.01
+  patience: 10
+  loss:
+    si_weight: 1.0
+    grad_weight: 0.5
+
+augmentation:
+  horizontal_flip_prob: 0.5
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.2
+    hue: 0.1
+  random_crop_scale: [0.8, 1.0]
 
 mlflow:
   server_uri: sqlite:///mlflow.db
   experiment_name: Monocular Depth Estimation
-  run_name: 1st
+  run_name: v3-full
   registered_model_name: ViT+Decoder
+
+export:
+  onnx_path: saved_models/model.onnx
+  tensorrt_path: saved_models/model.engine
+  opset_version: 17
+  hf_repo_id: aniketp2009gmail/monocular-depth-estimation
+  hf_space_id: aniketp2009gmail/depth-estimation-demo

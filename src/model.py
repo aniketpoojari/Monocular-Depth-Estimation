@@ -4,28 +4,40 @@ import timm
 
 
 class ReassembleLayer(nn.Module):
-    def __init__(self, embed_dim, s, new):
+    def __init__(self, embed_dim, scale, decoder_channels):
         super(ReassembleLayer, self).__init__()
-        self.new = new
+        self.decoder_channels = decoder_channels
         self.embed_dim = embed_dim
+        self.scale = scale
         self.project = nn.Conv2d(
-            self.embed_dim, self.new, kernel_size=1, stride=1, padding=0
+            self.embed_dim, self.decoder_channels, kernel_size=1, stride=1, padding=0
         )
-        if s == 4:
-            self.s = nn.ConvTranspose2d(
-                self.new, self.new, kernel_size=3, stride=4, output_padding=1
+        if scale == 4:
+            # Upsample 4x: bilinear + conv (avoids checkerboard from ConvTranspose2d)
+            self.resample = nn.Sequential(
+                nn.Upsample(scale_factor=4, mode="bilinear", align_corners=False),
+                nn.Conv2d(self.decoder_channels, self.decoder_channels, kernel_size=3, padding=1),
             )
-        elif s == 8:
-            self.s = nn.ConvTranspose2d(
-                self.new, self.new, kernel_size=3, stride=2, padding=1, output_padding=1
+        elif scale == 8:
+            # Upsample 2x
+            self.resample = nn.Sequential(
+                nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+                nn.Conv2d(self.decoder_channels, self.decoder_channels, kernel_size=3, padding=1),
             )
-        elif s == 16:
-            self.s = nn.Conv2d(self.new, self.new, kernel_size=3, stride=1, padding=1)
+        elif scale == 16:
+            # No spatial change
+            self.resample = nn.Conv2d(
+                self.decoder_channels, self.decoder_channels,
+                kernel_size=3, stride=1, padding=1,
+            )
         else:
-            self.s = nn.Conv2d(self.new, self.new, kernel_size=3, stride=2, padding=1)
+            # Downsample 2x
+            self.resample = nn.Sequential(
+                nn.Upsample(scale_factor=0.5, mode="bilinear", align_corners=False),
+                nn.Conv2d(self.decoder_channels, self.decoder_channels, kernel_size=3, padding=1),
+            )
 
     def forward(self, tokens):
-        # read
         cls = tokens[:, 0, :]
         tokens = tokens[:, 1:, :]
         b, n, d = tokens.size()
@@ -33,14 +45,10 @@ class ReassembleLayer(nn.Module):
         cls = cls.view(-1, 1, cls.shape[1])
         cls = cls.expand(-1, n, -1)
         tokens = tokens + cls
-        cls = None
 
-        # concatenate
         x = tokens.permute(0, 2, 1).reshape(b, self.embed_dim, h, w)
-
-        # resample
         x = self.project(x)
-        x = self.s(x)
+        x = self.resample(x)
 
         return x
 
@@ -48,69 +56,63 @@ class ReassembleLayer(nn.Module):
 class FusionBlock(nn.Module):
     def __init__(self, in_channels):
         super(FusionBlock, self).__init__()
-        self.upsample = nn.ConvTranspose2d(
-            in_channels, in_channels, kernel_size=4, stride=2, padding=1
+        self.resconv = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(in_channels),
+            nn.ReLU(),
+        )
+        self.upsample = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, padding=1),
         )
 
     def forward(self, x, skip_connection):
         x = x + skip_connection
+        x = self.resconv(x)
         x = self.upsample(x)
         return x
 
 
 class DPT(nn.Module):
 
-    def __init__(self, new=256):
+    def __init__(self, decoder_channels=256):
         super().__init__()
-        self.new = new
+        self.decoder_channels = decoder_channels
 
-        # Define ViT backbone
         self.vit = timm.create_model(
             "vit_base_patch16_224", pretrained=True, num_classes=1
         )
 
-        # Reassemble layers to get the feature maps at different scales
         self.reassemble_layers = nn.ModuleList(
             [
-                ReassembleLayer(embed_dim=768, s=4, new=new),  # 56
-                ReassembleLayer(embed_dim=768, s=8, new=new),  # 28
-                ReassembleLayer(embed_dim=768, s=16, new=new),  # 14
-                ReassembleLayer(embed_dim=768, s=32, new=new),  # 7
+                ReassembleLayer(embed_dim=768, scale=4, decoder_channels=decoder_channels),
+                ReassembleLayer(embed_dim=768, scale=8, decoder_channels=decoder_channels),
+                ReassembleLayer(embed_dim=768, scale=16, decoder_channels=decoder_channels),
+                ReassembleLayer(embed_dim=768, scale=32, decoder_channels=decoder_channels),
             ]
         )
 
         self.fusion_blocks = nn.ModuleList(
-            [
-                FusionBlock(new),
-                FusionBlock(new),
-                FusionBlock(new),
-                FusionBlock(new),
-            ]
+            [FusionBlock(decoder_channels) for _ in range(4)]
         )
 
         self.output_head = nn.Sequential(
-            nn.Conv2d(new, new // 2, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(decoder_channels, decoder_channels // 2, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
             nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
-            nn.Conv2d(new // 2, 32, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(True),
+            nn.Conv2d(decoder_channels // 2, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
             nn.Conv2d(32, 1, kernel_size=1, stride=1, padding=0),
-            nn.ReLU(True),
+            nn.ReLU(),
         )
 
     def forward(self, x):
         b, c, h, w = x.size()
 
-        tokens = self.vit.patch_embed(x)  # Initial embedding
+        tokens = self.vit.patch_embed(x)
 
-        # Add the [CLS] token to the beginning of the token sequence
-        cls_token = self.vit.cls_token.expand(
-            b, -1, -1
-        )  # Shape: [batch_size, 1, embedding_dim]
-        tokens = torch.cat(
-            (cls_token, tokens), dim=1
-        )  # Shape: [batch_size, num_patches + 1, embedding_dim]
-
-        # Positional embedding
+        cls_token = self.vit.cls_token.expand(b, -1, -1)
+        tokens = torch.cat((cls_token, tokens), dim=1)
         tokens += self.vit.pos_embed
 
         specific_tokens = []
@@ -119,13 +121,15 @@ class DPT(nn.Module):
             if (i + 1) % 3 == 0:
                 specific_tokens.append(tokens)
 
-        for i in range(0, len(specific_tokens)):
+        for i in range(len(specific_tokens)):
             specific_tokens[i] = self.vit.norm(specific_tokens[i])
 
         reassembled_features = []
         for i, reassemble_layer in enumerate(self.reassemble_layers):
             reassembled_features.append(reassemble_layer(specific_tokens[i]))
-        reassembled_features.append(torch.zeros([b, self.new, 7, 7]).cuda())
+        reassembled_features.append(
+            torch.zeros(b, self.decoder_channels, 7, 7, device=x.device)
+        )
 
         x = reassembled_features[-1]
         for i in range(len(self.fusion_blocks)):

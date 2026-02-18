@@ -1,30 +1,84 @@
 stages:
-  training:
-    cmd: python src/training.py --config=params.yaml
+  preprocessing:
+    cmd: python src/preprocess.py --config=params.yaml
     deps:
       - data/raw/depth_X/train
       - data/raw/depth_y/train
-      - src/training.py
+      - src/preprocess.py
     params:
-      - data.batch_size
-      - model.decoder_features
-      - training.num_epoches
-      - training.vit_lr
-      - training.decoder_lr
-      - mlflow.server_uri
-      - mlflow.experiment_name
-      - mlflow.run_name
-      - mlflow.registered_model_name
+      - data.img_size
+      - data.baseline
+      - data.focal_length
+      - data.max_depth
     outs:
-      - training_completion.txt
+      - data/processed/depth_X/train:
+          persist: true
+      - data/processed/depth_y/train:
+          persist: true
+
+  training:
+    cmd: python -u src/training.py --config=params.yaml
+    deps:
+      - data/processed/depth_X/train
+      - data/processed/depth_y/train
+      - data/processed/depth_X/val
+      - data/processed/depth_y/val
+      - src/training.py
+      - src/model.py
+      - src/data_loader.py
+      - src/metrics.py
+    params:
+      - data
+      - model
+      - training
+      - augmentation
+      - mlflow
+    outs:
+      - saved_models/model.pth
+
+  evaluate:
+    cmd: python src/evaluate.py --config=params.yaml
+    deps:
+      - saved_models/model.pth
+      - data/processed/depth_X/test
+      - data/processed/depth_y/test
+      - src/evaluate.py
+      - src/metrics.py
+    params:
+      - data
+      - model
+      - mlflow
+    metrics:
+      - metrics.json:
+          cache: false
 
   log_production_model:
     cmd: python src/log_production_model.py --config=params.yaml
     deps:
       - src/log_production_model.py
-      - training_completion.txt
-    params:
-      - mlflow.server_uri
-      - mlflow.experiment_name
-    outs:
       - saved_models/model.pth
+      - metrics.json
+    params:
+      - mlflow
+    outs:
+      - saved_models/production_model.pth
+
+  export_onnx:
+    cmd: python src/export_onnx.py --config=params.yaml
+    deps:
+      - saved_models/production_model.pth
+      - src/export_onnx.py
+      - src/model.py
+    params:
+      - export
+      - model
+    outs:
+      - saved_models/model.onnx
+
+  push_to_hf:
+    cmd: python src/push_to_hf.py --config=params.yaml
+    deps:
+      - saved_models/model.onnx
+      - src/push_to_hf.py
+    params:
+      - export.hf_repo_id
