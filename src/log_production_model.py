@@ -47,7 +47,10 @@ def log_production_model(config_path):
         print(f"Model improved! Production model updated (test_rmse={latest_rmse:.4f})")
     else:
         print(f"No improvement (best={best_rmse:.4f}, current={latest_rmse:.4f})")
-        print("Production model NOT updated.")
+        # Still ensure production_model.pth exists (DVC requires declared outputs)
+        if not os.path.exists("saved_models/production_model.pth"):
+            shutil.copy2("saved_models/model.pth", "saved_models/production_model.pth")
+            print("No previous production model — using current model.")
 
 
 if __name__ == "__main__":
