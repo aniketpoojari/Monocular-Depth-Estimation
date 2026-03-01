@@ -1,6 +1,10 @@
 # Monocular Depth Estimation with Dense Prediction Transformer
 
-Monocular depth estimation from single RGB images using a **Vision Transformer (ViT-Base/16)** encoder with convolutional decoder blocks, trained on the [Cityscapes](https://www.cityscapes-dataset.com/) dataset.
+[![HuggingFace Space](https://img.shields.io/badge/HuggingFace-Space-orange)](https://huggingface.co/spaces/aniketp2009gmail/depth-estimation-demo)
+
+A machine learning system that predicts the metric depth (how far away things are) from a single standard RGB image. It uses a **Vision Transformer (ViT-Base/16)** encoder combined with convolutional decoder blocks, trained on the Cityscapes driving dataset.
+
+**🚀 Try it live on Hugging Face Spaces: [Depth Estimation Demo](https://huggingface.co/spaces/aniketp2009gmail/depth-estimation-demo)**
 
 Based on the DPT architecture: [Vision Transformers for Dense Prediction (Ranftl et al., 2021)](https://arxiv.org/abs/2103.13413)
 
