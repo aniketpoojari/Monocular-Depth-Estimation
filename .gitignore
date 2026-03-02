@@ -30,3 +30,15 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+.claude/
+
+mlruns/
+
+*.pth
+
+*.pt
+
+*.cb
+
+.env
